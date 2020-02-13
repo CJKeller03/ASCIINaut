@@ -14,14 +14,16 @@ def clearScreen():
   
     # for windows 
     if name == 'nt': 
-        _ = system('cls') 
+        print(chr(27) + "[2J")
+        print(chr(27) + "[1;1f")
+        print(chr(27) + "[?25l")
   
     # for mac and linux(here, os.name is 'posix') 
     else: 
         _ = system('clear')
 
 def stackCanvases(canvases):
-    return Canvas(matrix = scipy.sparse.vstack([scipy.sparse.hstack([canvasObj.canvas for canvasObj in row]) for row in canvases]))
+    return Canvas(matrix = np.vstack([np.hstack([canvasObj.canvas for canvasObj in row]) for row in canvases]))
 
 def formatCanvas(canvas):
     if type(canvas) == Canvas:
@@ -32,7 +34,7 @@ def formatCanvas(canvas):
     return "\n".join([" ".join(Row) for Row in strArray])
     
 def createStackableCanvas(canvas, size, axis):
-    matchingShape = canvas.canvas.get_shape()
+    matchingShape = canvas.canvas.shape
 
     if axis == "X":
         return Canvas((matchingShape[0],size))
@@ -55,28 +57,28 @@ class Canvas:
 
     def asStrList(self):
 
-        return [[chr(int(v)) if v != 0 else " " for v in row] for row in self.canvas.toarray().T]
+        return [[chr(int(v)) if v != 0 else " " for v in row] for row in self.canvas.T.tolist()]
 
     def initialize(self, offset = (0,0)):
         if self.initialMatrix is not None:
             self.canvas = self.initialMatrix
-            self.size = self.initialMatrix.get_shape()
+            self.size = self.initialMatrix.shape
         else:
-            self.canvas = scipy.sparse.lil_matrix(self.size)
+            self.canvas = np.empty(self.size)
 
         self.offset = offset
 
     def drawSprite(self,sprite,position,avoidHoles = False):
 
-        shape = sprite.get_shape()
+        shape = sprite.shape
+
+        if len(shape) != 2:
+            raise ValueError("drawSprite requires a 2D numpy array as sprite")
         
         if not avoidHoles:
             self.canvas[position[0]+self.offset[0]:position[0]+shape[0]+self.offset[0],position[1]+self.offset[1]:position[1]+shape[1]+self.offset[1]] = sprite
-        else:
-            spriteFast = sprite.tocoo()    
-            for x,y,v in itertools.izip(spriteFast.row, spriteFast.col, spriteFast.data):
-                if v != 0:
-                    self.canvas[x+position[0]+self.offset[0],y+position[1]+self.offset[1]] = v
+        else:   
+            raise Exception("avoidHoles not set up yet")
     
     def cutOutSection(self, size, position, alignment = "CENTER"):
 
@@ -91,20 +93,6 @@ class Canvas:
 
 
 
-#A = Canvas((5,5))
-#A.drawSprite(scipy.sparse.lil_matrix([[65,65]]),(0,0))
-
-#B = createStackableCanvas(A, 5, "X")
-#B.drawSprite(scipy.sparse.lil_matrix([[66,66],[66,66]]),(0,0))
-
-#C = stackCanvases([[A],[B],[B]])
-
-#print(formatCanvas(C))
 
 
 
-A = Canvas((10,10))
-A.drawSprite(scipy.sparse.lil_matrix([[65,65],[65,65]]),(3,3))
-print(formatCanvas(A))
-A.cutOutSection((5,5),(3,3))
-print(formatCanvas(A))
