@@ -1,6 +1,7 @@
 import numpy as np
 import Entity
 import timeit
+import pprint
 
 #where K = 1; M = 0.058; m = 0.045; V = 40, v = -50
 #x = (sqrt(-m M ((m v + M V)^2 - 2 K (m + M))) + m M v + M^2 V)/(M (m + M))
@@ -17,6 +18,11 @@ def compareVecs(vectorA, vectorB):
 def magnitude(vector):
     return np.sqrt(vector.dot(vector))
 
+def pointInRect(point, topLeft, bottomRight):
+
+    AB = np.(
+    
+
 def onLine(point, line):
     
     if ((not point[0] <= max(line[0][0], line[1][0])) or
@@ -29,7 +35,10 @@ def onLine(point, line):
     return True
 
 def orientation(pointA, pointB, pointC):
-    return (pointB[1] - pointA[1]) * (pointC[0] - pointB[0]) - (pointB[0] - pointA[0]) * (pointC[1] - pointB[1])
+    return np.sign(((pointB[1] - pointA[1]) * (pointC[0] - pointB[0])) -
+                   ((pointB[0] - pointA[0]) * (pointC[1] - pointB[1])))
+
+    
 
 def linesIntersect(lineA, lineB):
 
@@ -38,53 +47,63 @@ def linesIntersect(lineA, lineB):
     o3 = orientation(lineB[0], lineB[1], lineA[0])
     o4 = orientation(lineB[0], lineB[1], lineA[1])
 
+    print(o1,o2,o3,o4)
+
     if o1 != o2 and o3 != o4:
         return True
-    elif o1 == 0 and onLine(lineB[0], lineA):
-        return True
-    elif o2 == 0 and onLine(lineB[1], lineA):
-        return True
-    elif o3 == 0 and onLine(lineA[0], lineB):
-        return True
-    elif o4 == 0 and onLine(lineA[1], lineB):
-        return True
+    
+    #elif o1 == 0 and onLine(lineB[0], lineA):
+    #    return True
+    #elif o2 == 0 and onLine(lineB[1], lineA):
+    #    return True
+    #elif o3 == 0 and onLine(lineA[0], lineB):
+    #    return True
+    #elif o4 == 0 and onLine(lineA[1], lineB):
+    #    return True
 
     return False
 
 def raycastCollisionExists(entityA, entityB):
-    ray = np.array((entityA.physicsPos, np.add(entityA.physicsPos,entityA.vel)))
+    ray = np.array((entityA.pos, np.rint(np.add(entityA.physicsPos,entityA.vel))))
+    
     print("ray:",ray)
 
     position = entityB.physicsPos
     size = np.subtract(entityB.sprite.shape, 1)
 
+    topLeft = position - 1
+    topRight = np.array((position[0] + size[0] + 1, position[1] - 1))
+    bottomLeft = np.array((position[0] - 1, position[1] + size[1] + 1))
+    bottomRight = position + size + 1
+
     print("B:",size,position)
 
-    bounds = [np.array((position, (position[0] + size[0], position[1]))), # upper bound
-              np.array((position, (position[0], position[1] + size[1]))), # left bound
-              np.array(((position[0], position[1] + size[1]), (position[0] + size[0], position[1] + size[1]))), # lower bound
-              np.array(((position[0] + size[0], position[1]), (position[0] + size[0], position[1] + size[1])))] # right bound
+    bounds = [np.array((topLeft, topRight)), # upper bound
+              np.array((topLeft, bottomLeft)), # left bound
+              np.array((bottomLeft, bottomRight)), # lower bound
+              np.array((topRight, bottomRight))] # right bound
 
+    pprint.pprint(bounds)
+    
     for bound in bounds:
-        print("bound:",bound)
         if linesIntersect(bound, ray):
-            print("intersects")
+            print(ray," intersects ",bound)
             return True
 
     return False
     
 def checkEntityCollision(entityA,entityB):
 
-    boundsIntersect = (entityA.physicsPos[0] < entityB.physicsPos[0] + entityB.sprite.shape[0] and
-                       entityA.physicsPos[0] + entityA.sprite.shape[0] > entityB.physicsPos[0] and
-                       entityA.physicsPos[1] < entityB.physicsPos[1] + entityB.sprite.shape[1] and
-                       entityA.physicsPos[1] + entityA.sprite.shape[1] > entityB.physicsPos[1])
+    boundsIntersect = (entityA.physicsPos[0] - 1 < entityB.physicsPos[0] + entityB.sprite.shape[0] + 1 and
+                       entityA.physicsPos[0] + entityA.sprite.shape[0] + 1 > entityB.physicsPos[0] - 1 and
+                       entityA.physicsPos[1] - 1 < entityB.physicsPos[1] + entityB.sprite.shape[1] + 1 and
+                       entityA.physicsPos[1] + entityA.sprite.shape[1] + 1 > entityB.physicsPos[1] - 1)
 
     
     if boundsIntersect and (entityA.vel.any() or entityB.vel.any()):
         
         # Because their bounding boxes are already colliding, the velocity of the faster entity will control whether they collide.
-        # Draw a test vector from the faster entities position to the slower one. If the faster entities velocity is pointing closer than
+        # Draw a test vector from the faster entity's position to the slower one. If the faster entity's velocity is pointing closer than
         # perpendicular to the test vector and is greater or equal in magnitude to the test vector, the objects are colliding.
         
         if magnitude(entityA.vel) >= magnitude(entityB.vel):
@@ -202,11 +221,38 @@ def testCollision():
     print(B.vel)
 
 def testRaycast():
-    A = Entity.Entity("A",(0,0),np.array([["A","A"]]),1)
-    B = Entity.Entity("B",(2,0),np.array([["B"]]),1)
+    A = Entity.Entity("A",(0,0),np.array([["A","A"],["A","A"]]),1)
+    B = Entity.Entity("B",(-1,0),np.array([["B"]]),1)
 
     A.vel = np.array([0,0])
-    B.vel = np.array([-1,1])
+    B.vel = np.array([0,1])
 
     print(raycastCollisionExists(B,A))
 
+def testIntersect():
+
+    A = np.array([[0,0],[10,0]])
+    B = np.array([[0,5],[10,5]])
+
+    print("Paralell test:",linesIntersect(A,B) == False)
+
+    B = np.array([[5,5],[5,-5]])
+    print("Perpendicular test:",linesIntersect(A,B) == True)
+
+    B = np.array([[15,5],[15,-5]])
+    print("Perpendicular test 2:",linesIntersect(A,B) == False)
+
+    B = np.array([[0,5],[10,-5]])
+    print("Diagonal test:",linesIntersect(A,B) == True)
+
+    B = np.array([[0,-5],[10,5]])
+    print("Diagonal test 2:",linesIntersect(A,B) == True)
+
+    B = np.array([[10,5],[12,-5]])
+    print("Diagonal test 3:",linesIntersect(A,B) == False)
+
+    B = np.array([[0,0],[-5,0]])
+    print("Touching test:",linesIntersect(A,B) == False)
+
+
+    
